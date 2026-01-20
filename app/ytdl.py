@@ -15,6 +15,10 @@ import subprocess
 import yt_dlp.networking.impersonate
 from dl_formats import get_format, get_opts, AUDIO_FORMATS
 from datetime import datetime
+try:
+    from . import video_processor
+except ImportError:
+    import video_processor
 
 log = logging.getLogger('ytdl')
 
@@ -287,12 +291,17 @@ class PersistentQueue:
 
     def repair(self):
         # check DB format
-        type_check = subprocess.run(
-            ["file", self.path],
-            capture_output=True,
-            text=True
-        )
-        db_type = type_check.stdout.lower()
+        try:
+            type_check = subprocess.run(
+                ["file", self.path],
+                capture_output=True,
+                text=True
+            )
+            db_type = type_check.stdout.lower()
+        except FileNotFoundError:
+            # 'file' command not available (e.g., on Windows)
+            log.debug(f"PersistentQueue:{self.identifier} 'file' command not found, skipping DB type check")
+            db_type = ""  # Will skip gdbm-specific repairs
 
         # create backup (<queue>.old)
         try:
@@ -352,7 +361,7 @@ class PersistentQueue:
                     log.debug(f"{log_prefix} failed: {result.stderr}")
                 else:
                     shutil.move(f"{self.path}.tmp", self.path)
-                    log.debug(f"{log_prefix}{result.stdout or " was successful, no output"}")
+                    log.debug(f"{log_prefix}{result.stdout or ' was successful, no output'}")
             except FileNotFoundError:
                 log.debug(f"{log_prefix} failed: 'sqlite3' was not found")
                 
@@ -366,6 +375,8 @@ class DownloadQueue:
         self.active_downloads = set()
         self.semaphore = asyncio.Semaphore(int(self.config.MAX_CONCURRENT_DOWNLOADS))
         self.done.load()
+        # Inicializar procesador de videos
+        self.video_processor = video_processor.VideoProcessingQueue(config)
 
     async def __import_queue(self):
         for k, v in self.queue.saved_items():
@@ -406,6 +417,31 @@ class DownloadQueue:
                 asyncio.create_task(self.notifier.canceled(download.info.url))
             else:
                 self.done.put(download)
+
+                # Procesar video si está habilitado y es un archivo de video
+                if (hasattr(self.config, 'ENABLE_VEHICLE_DETECTION') and
+                    self.config.ENABLE_VEHICLE_DETECTION and
+                    download.info.status == 'finished' and
+                    download.info.format not in AUDIO_FORMATS and
+                    not hasattr(download.info, 'is_chapter')):
+
+                    video_path = os.path.join(download.download_dir, download.info.filename)
+
+                    metadata = {
+                        'title': download.info.title,
+                        'url': download.info.url,
+                        'filename': download.info.filename,
+                        'format': download.info.format,
+                        'quality': download.info.quality,
+                        'size': download.info.size,
+                        'download_dir': download.download_dir
+                    }
+
+                    # Agregar a cola de procesamiento (no bloquea)
+                    asyncio.create_task(
+                        self.video_processor.add_video(video_path, metadata)
+                    )
+
                 asyncio.create_task(self.notifier.completed(download.info))
 
     def __extract_info(self, url):

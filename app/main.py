@@ -72,9 +72,19 @@ class Config:
         'MAX_CONCURRENT_DOWNLOADS': 3,
         'LOGLEVEL': 'INFO',
         'ENABLE_ACCESSLOG': 'false',
+        # === Detección de Vehículos ===
+        'ENABLE_VEHICLE_DETECTION': 'True',
+        'SHOTS_DIR': './shots',
+        'YOLO_MODEL': 'yolo11n.pt',
+        'YOLO_CONF_THRESHOLD': '0.5',
+        'YOLO_SIMILARITY_THRESHOLD': '0.80',
+        'YOLO_MIN_AREA': '40000',
+        'YOLO_STRATEGY': 'complete',
+        'PLATE_DETECTOR_MODEL': 'yolo-v9-s-608-license-plate-end2end',
+        'PLATE_OCR_MODEL': 'global-plates-mobile-vit-v2-model',
     }
 
-    _BOOLEAN = ('DOWNLOAD_DIRS_INDEXABLE', 'CUSTOM_DIRS', 'CREATE_CUSTOM_DIRS', 'DELETE_FILE_ON_TRASHCAN', 'HTTPS', 'ENABLE_ACCESSLOG')
+    _BOOLEAN = ('DOWNLOAD_DIRS_INDEXABLE', 'CUSTOM_DIRS', 'CREATE_CUSTOM_DIRS', 'DELETE_FILE_ON_TRASHCAN', 'HTTPS', 'ENABLE_ACCESSLOG', 'ENABLE_VEHICLE_DETECTION')
 
     def __init__(self):
         for k, v in self._DEFAULTS.items():
