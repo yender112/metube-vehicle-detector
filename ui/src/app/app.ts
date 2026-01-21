@@ -41,7 +41,6 @@ export class App implements AfterViewInit, OnInit {
   // Hardcoded default values for simplified form
   private readonly DEFAULT_QUALITY = 'best';
   private readonly DEFAULT_FORMAT = 'mp4';
-  private readonly DEFAULT_AUTO_START = true;
 
   themes: Theme[] = Themes;
   activeTheme: Theme | undefined;
@@ -198,7 +197,7 @@ export class App implements AfterViewInit, OnInit {
       '',  // folder
       '',  // customNamePrefix
       0,   // playlistItemLimit
-      this.DEFAULT_AUTO_START,
+      true,
       false, // splitByChapters
       this.downloads.configuration['OUTPUT_TEMPLATE_CHAPTER'] || ''
     ).subscribe((status: Status) => {
@@ -366,7 +365,7 @@ export class App implements AfterViewInit, OnInit {
         '',  // folder
         '',  // customNamePrefix
         0,   // playlistItemLimit
-        this.DEFAULT_AUTO_START,
+        true,
         false, // splitByChapters
         this.downloads.configuration['OUTPUT_TEMPLATE_CHAPTER'] || ''
       ).subscribe({
