@@ -26,8 +26,8 @@ RUN sed -i 's/\r$//g' docker-entrypoint.sh && \
     apk add --update --virtual .build-deps gcc g++ musl-dev uv \
         # OpenCV build dependencies
         jpeg-dev libpng-dev libwebp-dev tiff-dev openblas-dev lapack-dev && \
-    # Install Python packages with uv
-    UV_PROJECT_ENVIRONMENT=/usr/local uv sync --frozen --no-dev --compile-bytecode && \
+    # Install Python packages with uv (regenerate lock if needed)
+    UV_PROJECT_ENVIRONMENT=/usr/local uv sync --no-dev --compile-bytecode && \
     # Clean up build dependencies
     apk del .build-deps && \
     rm -rf /var/cache/apk/* && \
