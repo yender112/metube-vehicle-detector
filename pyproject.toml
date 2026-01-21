@@ -13,7 +13,7 @@ dependencies = [
     # Vehicle and plate detection dependencies
     "ultralytics>=8.0.0",
     "opencv-python-headless>=4.8.0",
-    "fast-alpr>=0.3.0",
+    "fast-alpr[onnx]>=0.3.0",
     "numpy>=1.24.0",
 ]
 
