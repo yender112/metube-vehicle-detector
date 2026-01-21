@@ -111,15 +111,172 @@
         </div>
       </div>
 
-      <!-- Import URLs Button -->
-      <div class="row">
-        <div class="col text-center">
+      <!-- Options Row -->
+      <div class="row mb-3 g-3">
+        <div class="col-md-4">
+          <div class="input-group">
+            <span class="input-group-text">Quality</span>
+            <select class="form-select"
+              name="quality"
+              [(ngModel)]="quality"
+              (change)="qualityChanged()"
+              [disabled]="addInProgress || downloads.loading">
+              @for (q of qualities; track q) {
+                <option [ngValue]="q.id">{{ q.text }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="input-group">
+            <span class="input-group-text">Format</span>
+            <select class="form-select"
+              name="format"
+              [(ngModel)]="format"
+              (change)="formatChanged()"
+              [disabled]="addInProgress || downloads.loading">
+              @for (f of formats; track f) {
+                <option [ngValue]="f.id">{{ f.text }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="col-md-4">
           <button type="button"
-            class="btn btn-outline-secondary"
-            (click)="openBatchImportModal()">
-            <fa-icon [icon]="faFileImport" class="me-2" />
-            Import URLs
+            class="btn btn-outline-secondary w-100 h-100"
+            (click)="toggleAdvanced()">
+            Advanced Options
           </button>
+        </div>
+      </div>
+
+      <!-- Advanced Options Panel -->
+      <div class="row">
+        <div class="col-12">
+          <div class="collapse show" id="advancedOptions" [ngbCollapse]="!isAdvancedOpen">
+            <div class="card card-body">
+              <!-- Advanced Settings -->
+              <div class="row g-3 mb-2">
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <span class="input-group-text">Auto Start</span>
+                    <select class="form-select"
+                      name="autoStart"
+                      [(ngModel)]="autoStart"
+                      (change)="autoStartChanged()"
+                      [disabled]="addInProgress || downloads.loading"
+                      ngbTooltip="Automatically start downloads when added">
+                      <option [ngValue]="true">Yes</option>
+                      <option [ngValue]="false">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <span class="input-group-text">Download Folder</span>
+                    @if (customDirs$ | async; as customDirs) {
+                    <ng-select [items]="customDirs"
+                      placeholder="Default"
+                      [addTag]="allowCustomDir.bind(this)"
+                      addTagText="Create directory"
+                      bindLabel="folder"
+                      [(ngModel)]="folder"
+                      [disabled]="addInProgress || downloads.loading"
+                      [virtualScroll]="true"
+                      [clearable]="true"
+                      [loading]="downloads.loading"
+                      [searchable]="true"
+                      [closeOnSelect]="true"
+                      ngbTooltip="Choose where to save downloads. Type to create a new folder." />
+                  }
+                  </div>
+           
+                </div>
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <span class="input-group-text">Custom Name Prefix</span>
+                    <input type="text"
+                      class="form-control"
+                      placeholder="Default"
+                      name="customNamePrefix"
+                      [(ngModel)]="customNamePrefix"
+                      [disabled]="addInProgress || downloads.loading"
+                      ngbTooltip="Add a prefix to downloaded filenames">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <span class="input-group-text">Items Limit</span>
+                    <input type="number"
+                      min="0"
+                      class="form-control"
+                      placeholder="Default"
+                      name="playlistItemLimit"
+                      (keydown)="isNumber($event)"
+                      [(ngModel)]="playlistItemLimit"
+                      [disabled]="addInProgress || downloads.loading"
+                      ngbTooltip="Maximum number of items to download from a playlist (0 = no limit)">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="checkbox-split-chapters"
+                          name="splitByChapters" [(ngModel)]="splitByChapters" (change)="splitByChaptersChanged()"
+                          [disabled]="addInProgress || downloads.loading"
+                          ngbTooltip="Split video into separate files by chapters">
+                        <label class="form-check-label" for="checkbox-split-chapters">Split by chapters</label>
+                      </div>
+                    </div>
+                    @if (splitByChapters) {
+                    <div class="col">
+                      <div class="input-group">
+                        <span class="input-group-text">Template</span>
+                        <input type="text" class="form-control" name="chapterTemplate" [(ngModel)]="chapterTemplate"
+                          (change)="chapterTemplateChanged()" [disabled]="addInProgress || downloads.loading"
+                          ngbTooltip="Output template for chapter files">
+                      </div>
+                    </div>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <!-- Advanced Actions -->
+              <div class="row">
+                <div class="col-12">
+                  <hr class="my-3">
+                  <div class="row g-2">
+                    <div class="col-md-4">
+                      <button type="button"
+                        class="btn btn-secondary w-100"
+                        (click)="openBatchImportModal()">
+                        <fa-icon [icon]="faFileImport" class="me-2" />
+                        Import URLs
+                      </button>
+                    </div>
+                    <div class="col-md-4">
+                      <button type="button"
+                        class="btn btn-secondary w-100"
+                        (click)="exportBatchUrls('all')">
+                        <fa-icon [icon]="faFileExport" class="me-2" />
+                        Export URLs
+                      </button>
+                    </div>
+                    <div class="col-md-4">
+                      <button type="button"
+                        class="btn btn-secondary w-100"
+                        (click)="copyBatchUrls('all')">
+                        <fa-icon [icon]="faCopy" class="me-2" />
+                        Copy URLs
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -304,104 +461,6 @@
         }
       }
     }
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Video Processing Section -->
-  <div class="metube-section-header">Video Processing</div>
-  <div class="px-2 py-3 border-bottom">
-    <small class="text-muted">Vehicle detection and plate recognition</small>
-  </div>
-  <div class="overflow-auto">
-    <table class="table">
-      <thead>
-        <tr>
-          <th scope="col" style="width: 2rem;">Status</th>
-          <th scope="col">Video</th>
-          <th scope="col" style="width: 10rem;">Progress</th>
-          <th scope="col" style="width: 10rem;">Details</th>
-          <th scope="col" style="width: 5rem;"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Active Processing -->
-        @for (proc of downloads.processing | keyvalue: asIsOrder; track proc.value.id) {
-          <tr>
-            <td>
-              <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
-            </td>
-            <td>
-              <div>{{ proc.value.title }}</div>
-              <small class="text-muted">{{ proc.value.current_step }}</small>
-            </td>
-            <td>
-              <ngb-progressbar height="1.5rem" [showValue]="true" type="primary" [striped]="true" [animated]="true"
-                [value]="proc.value.percent" class="processing-progressbar" />
-            </td>
-            <td>
-              <small>
-                @if (proc.value.vehicles_detected > 0) {
-                  <span>{{ proc.value.vehicles_detected }} vehicles</span>
-                }
-                @if (proc.value.vehicles_with_plates > 0) {
-                  <span> | {{ proc.value.vehicles_with_plates }} plates</span>
-                }
-              </small>
-            </td>
-            <td>
-              <a href="{{proc.value.url}}" target="_blank" class="btn btn-link btn-sm">
-                <fa-icon [icon]="faExternalLinkAlt" />
-              </a>
-            </td>
-          </tr>
-        }
-
-        <!-- Completed/Failed Processing -->
-        @for (proc of downloads.processingDone | keyvalue: asIsOrder; track proc.value.id) {
-          <tr [class.table-danger]="proc.value.status === 'error'">
-            <td>
-              @if (proc.value.status === 'completed') {
-                <fa-icon [icon]="faCheckCircle" class="text-success" />
-              }
-              @if (proc.value.status === 'error') {
-                <fa-icon [icon]="faTimesCircle" class="text-danger" />
-              }
-            </td>
-            <td>
-              <div>{{ proc.value.title }}</div>
-              @if (proc.value.status === 'error') {
-                <small class="text-danger">{{ proc.value.error }}</small>
-              } @else {
-                <small class="text-muted">{{ proc.value.current_step }}</small>
-              }
-            </td>
-            <td>
-              <ngb-progressbar height="1.5rem" [showValue]="true"
-                [type]="proc.value.status === 'error' ? 'danger' : 'success'"
-                [value]="proc.value.percent" class="processing-progressbar" />
-            </td>
-            <td>
-              <small>
-                @if (proc.value.shots_saved > 0) {
-                  <span>{{ proc.value.shots_saved }} shots saved</span>
-                }
-              </small>
-            </td>
-            <td>
-              <div class="d-flex">
-                @if (proc.value.status === 'error') {
-                  <button type="button" class="btn btn-link btn-sm" (click)="retryProcessing(proc.value.id)">
-                    <fa-icon [icon]="faRedoAlt" />
-                  </button>
-                }
-                <a href="{{proc.value.url}}" target="_blank" class="btn btn-link btn-sm">
-                  <fa-icon [icon]="faExternalLinkAlt" />
-                </a>
-              </div>
-            </td>
-          </tr>
-        }
       </tbody>
     </table>
   </div>
