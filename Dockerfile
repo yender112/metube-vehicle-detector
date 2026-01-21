@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm --activate
 RUN pnpm install && pnpm run build
 
 
-FROM python:3.13-alpine
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -16,21 +16,37 @@ COPY pyproject.toml uv.lock docker-entrypoint.sh ./
 # Install dependencies
 RUN sed -i 's/\r$//g' docker-entrypoint.sh && \
     chmod +x docker-entrypoint.sh && \
-    # Install system dependencies for OpenCV and ML libraries
-    apk add --update ffmpeg aria2 coreutils shadow su-exec curl tini deno gdbm-tools sqlite file \
-        # OpenCV dependencies
-        libgomp libstdc++ libgcc \
-        # Image processing libraries
-        libjpeg-turbo libpng libwebp tiff openblas lapack && \
-    # Install build dependencies
-    apk add --update --virtual .build-deps gcc g++ musl-dev uv \
-        # OpenCV build dependencies
-        jpeg-dev libpng-dev libwebp-dev tiff-dev openblas-dev lapack-dev && \
-    # Install Python packages with uv (regenerate lock if needed)
+    # Install system dependencies
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        aria2 \
+        curl \
+        tini \
+        gosu \
+        file \
+        # OpenCV and image processing dependencies
+        libgl1 \
+        libglib2.0-0 \
+        libsm6 \
+        libxext6 \
+        libxrender1 \
+        libgomp1 \
+        # Image format libraries
+        libjpeg62-turbo \
+        libpng16-16 \
+        libwebp7 \
+        libtiff6 \
+        libopenblas0 \
+        liblapack3 && \
+    # Install uv for Python package management
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    # Add uv to PATH and install Python packages
+    export PATH="/root/.local/bin:$PATH" && \
     UV_PROJECT_ENVIRONMENT=/usr/local uv sync --no-dev --compile-bytecode && \
-    # Clean up build dependencies
-    apk del .build-deps && \
-    rm -rf /var/cache/apk/* && \
+    # Clean up
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /root/.cache && \
     mkdir /.cache && chmod 777 /.cache
 
 COPY app ./app
@@ -40,9 +56,9 @@ ENV UID=1000
 ENV GID=1000
 ENV UMASK=022
 
-ENV DOWNLOAD_DIR /downloads
-ENV STATE_DIR /downloads/.metube
-ENV TEMP_DIR /downloads
+ENV DOWNLOAD_DIR=/downloads
+ENV STATE_DIR=/downloads/.metube
+ENV TEMP_DIR=/downloads
 VOLUME /downloads
 EXPOSE 8081
 
@@ -61,4 +77,4 @@ ENV PLATE_OCR_MODEL=global-plates-mobile-vit-v2-model
 ARG VERSION=dev
 ENV METUBE_VERSION=$VERSION
 
-ENTRYPOINT ["/sbin/tini", "-g", "--", "./docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "./docker-entrypoint.sh"]
