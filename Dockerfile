@@ -35,8 +35,8 @@ RUN sed -i 's/\r$//g' docker-entrypoint.sh && \
         # Image format libraries
         libjpeg62-turbo \
         libpng16-16 \
-        libwebp7 \
-        libtiff6 \
+        libwebp-dev \
+        libtiff-dev \
         libopenblas0 \
         liblapack3 && \
     # Install uv for Python package management
