@@ -38,7 +38,9 @@ RUN sed -i 's/\r$//g' docker-entrypoint.sh && \
         libwebp-dev \
         libtiff-dev \
         libopenblas0 \
-        liblapack3 && \
+        liblapack3 \
+        # SMB client for file transfer
+        smbclient && \
     # Install uv for Python package management
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
     # Add uv to PATH and install Python packages
@@ -73,6 +75,15 @@ ENV YOLO_MIN_AREA=40000
 ENV YOLO_STRATEGY=complete
 ENV PLATE_DETECTOR_MODEL=yolo-v9-s-608-license-plate-end2end
 ENV PLATE_OCR_MODEL=global-plates-mobile-vit-v2-model
+
+# SMB/Samba configuration for moving processed files
+ENV SMB_ENABLED=false
+ENV SMB_SERVER=
+ENV SMB_SHARE=
+ENV SMB_PATH=
+ENV SMB_USERNAME=
+ENV SMB_PASSWORD=
+ENV SMB_DOMAIN=
 
 # Add build-time argument for version
 ARG VERSION=dev

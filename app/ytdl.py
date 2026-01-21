@@ -375,8 +375,8 @@ class DownloadQueue:
         self.active_downloads = set()
         self.semaphore = asyncio.Semaphore(int(self.config.MAX_CONCURRENT_DOWNLOADS))
         self.done.load()
-        # Inicializar procesador de videos
-        self.video_processor = video_processor.VideoProcessingQueue(config)
+        # Inicializar procesador de videos con notifier para eventos de procesamiento
+        self.video_processor = video_processor.VideoProcessingQueue(config, notifier)
 
     async def __import_queue(self):
         for k, v in self.queue.saved_items():

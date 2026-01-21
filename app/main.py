@@ -17,6 +17,7 @@ import re
 from watchfiles import DefaultFilter, Change, awatch
 
 from ytdl import DownloadQueueNotifier, DownloadQueue
+from video_processor import ProcessingQueueNotifier, ProcessingInfo
 from yt_dlp.version import __version__ as yt_dlp_version
 
 log = logging.getLogger('main')
@@ -82,9 +83,17 @@ class Config:
         'YOLO_STRATEGY': 'complete',
         'PLATE_DETECTOR_MODEL': 'yolo-v9-s-608-license-plate-end2end',
         'PLATE_OCR_MODEL': 'global-plates-mobile-vit-v2-model',
+        # === SMB/Samba Configuration ===
+        'SMB_ENABLED': 'false',
+        'SMB_SERVER': '',
+        'SMB_SHARE': '',
+        'SMB_PATH': '',
+        'SMB_USERNAME': '',
+        'SMB_PASSWORD': '',
+        'SMB_DOMAIN': '',
     }
 
-    _BOOLEAN = ('DOWNLOAD_DIRS_INDEXABLE', 'CUSTOM_DIRS', 'CREATE_CUSTOM_DIRS', 'DELETE_FILE_ON_TRASHCAN', 'HTTPS', 'ENABLE_ACCESSLOG', 'ENABLE_VEHICLE_DETECTION')
+    _BOOLEAN = ('DOWNLOAD_DIRS_INDEXABLE', 'CUSTOM_DIRS', 'CREATE_CUSTOM_DIRS', 'DELETE_FILE_ON_TRASHCAN', 'HTTPS', 'ENABLE_ACCESSLOG', 'ENABLE_VEHICLE_DETECTION', 'SMB_ENABLED')
 
     def __init__(self):
         for k, v in self._DEFAULTS.items():
@@ -166,7 +175,8 @@ sio = socketio.AsyncServer(cors_allowed_origins='*')
 sio.attach(app, socketio_path=config.URL_PREFIX + 'socket.io')
 routes = web.RouteTableDef()
 
-class Notifier(DownloadQueueNotifier):
+class Notifier(DownloadQueueNotifier, ProcessingQueueNotifier):
+    # Download events
     async def added(self, dl):
         log.info(f"Notifier: Download added - {dl.title}")
         await sio.emit('added', serializer.encode(dl))
@@ -187,7 +197,25 @@ class Notifier(DownloadQueueNotifier):
         log.info(f"Notifier: Download cleared - {id}")
         await sio.emit('cleared', serializer.encode(id))
 
-dqueue = DownloadQueue(config, Notifier())
+    # Processing events
+    async def processing_added(self, info: ProcessingInfo):
+        log.info(f"Notifier: Processing added - {info.title}")
+        await sio.emit('processing_added', serializer.encode(info.to_dict()))
+
+    async def processing_updated(self, info: ProcessingInfo):
+        log.debug(f"Notifier: Processing updated - {info.title} ({info.percent}%)")
+        await sio.emit('processing_updated', serializer.encode(info.to_dict()))
+
+    async def processing_completed(self, info: ProcessingInfo):
+        log.info(f"Notifier: Processing completed - {info.title}")
+        await sio.emit('processing_completed', serializer.encode(info.to_dict()))
+
+    async def processing_error(self, info: ProcessingInfo):
+        log.error(f"Notifier: Processing error - {info.title}: {info.error}")
+        await sio.emit('processing_error', serializer.encode(info.to_dict()))
+
+notifier = Notifier()
+dqueue = DownloadQueue(config, notifier)
 app.on_startup.append(lambda app: dqueue.initialize())
 
 class FileOpsFilter(DefaultFilter):
@@ -293,6 +321,23 @@ async def start(request):
     status = await dqueue.start_pending(ids)
     return web.Response(text=serializer.encode(status))
 
+@routes.get(config.URL_PREFIX + 'processing')
+async def get_processing(request):
+    """Get video processing status."""
+    status = dqueue.video_processor.get_status()
+    return web.Response(text=serializer.encode(status))
+
+@routes.post(config.URL_PREFIX + 'processing/retry')
+async def retry_processing(request):
+    """Retry a failed video processing job."""
+    post = await request.json()
+    id = post.get('id')
+    if not id:
+        log.error("Bad request: missing 'id'")
+        raise web.HTTPBadRequest()
+    result = await dqueue.video_processor.retry_processing(id)
+    return web.Response(text=serializer.encode(result))
+
 @routes.get(config.URL_PREFIX + 'history')
 async def history(request):
     history = { 'done': [], 'queue': [], 'pending': []}
@@ -312,6 +357,8 @@ async def connect(sid, environ):
     log.info(f"Client connected: {sid}")
     await sio.emit('all', serializer.encode(dqueue.get()), to=sid)
     await sio.emit('configuration', serializer.encode(config), to=sid)
+    # Send processing status
+    await sio.emit('processing_all', serializer.encode(dqueue.video_processor.get_status()), to=sid)
     if config.CUSTOM_DIRS:
         await sio.emit('custom_dirs', serializer.encode(get_custom_dirs()), to=sid)
     if config.YTDL_OPTIONS_FILE:

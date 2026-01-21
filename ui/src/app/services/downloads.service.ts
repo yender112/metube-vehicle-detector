@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { of, Subject } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { MeTubeSocket } from './metube-socket.service';
-import { Download, Status, State } from '../interfaces';
+import { Download, Status, State, ProcessingInfo } from '../interfaces';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 @Injectable({
   providedIn: 'root'
@@ -20,6 +20,11 @@ export class DownloadsService {
   ytdlOptionsChanged = new Subject();
   configurationChanged = new Subject();
   updated = new Subject();
+
+  // Processing status
+  processing = new Map<string, ProcessingInfo>();
+  processingDone = new Map<string, ProcessingInfo>();
+  processingChanged = new Subject();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   configuration: any = {};
@@ -100,6 +105,52 @@ export class DownloadsService {
       const data = JSON.parse(strdata);
       this.ytdlOptionsChanged.next(data);
     });
+
+    // Processing events
+    this.socket.fromEvent('processing_all')
+    .pipe(takeUntilDestroyed())
+    .subscribe((strdata: string) => {
+      const data: { processing: ProcessingInfo[], completed: ProcessingInfo[] } = JSON.parse(strdata);
+      this.processing.clear();
+      this.processingDone.clear();
+      data.processing.forEach((p: ProcessingInfo) => this.processing.set(p.id, p));
+      data.completed.forEach((p: ProcessingInfo) => this.processingDone.set(p.id, p));
+      this.processingChanged.next(null);
+    });
+
+    this.socket.fromEvent('processing_added')
+    .pipe(takeUntilDestroyed())
+    .subscribe((strdata: string) => {
+      const data: ProcessingInfo = JSON.parse(strdata);
+      this.processing.set(data.id, data);
+      this.processingChanged.next(null);
+    });
+
+    this.socket.fromEvent('processing_updated')
+    .pipe(takeUntilDestroyed())
+    .subscribe((strdata: string) => {
+      const data: ProcessingInfo = JSON.parse(strdata);
+      this.processing.set(data.id, data);
+      this.processingChanged.next(null);
+    });
+
+    this.socket.fromEvent('processing_completed')
+    .pipe(takeUntilDestroyed())
+    .subscribe((strdata: string) => {
+      const data: ProcessingInfo = JSON.parse(strdata);
+      this.processing.delete(data.id);
+      this.processingDone.set(data.id, data);
+      this.processingChanged.next(null);
+    });
+
+    this.socket.fromEvent('processing_error')
+    .pipe(takeUntilDestroyed())
+    .subscribe((strdata: string) => {
+      const data: ProcessingInfo = JSON.parse(strdata);
+      this.processing.delete(data.id);
+      this.processingDone.set(data.id, data);
+      this.processingChanged.next(null);
+    });
   }
 
   handleHTTPError(error: HttpErrorResponse) {
@@ -166,6 +217,10 @@ export class DownloadsService {
   public exportQueueUrls(): string[] {
     return Array.from(this.queue.values()).map(download => download.url);
   }
-  
-  
+
+  public retryProcessing(id: string) {
+    return this.http.post<Status>('processing/retry', { id }).pipe(
+      catchError(this.handleHTTPError)
+    );
+  }
 }
