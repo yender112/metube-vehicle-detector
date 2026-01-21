@@ -1,0 +1,39 @@
+services:
+  metube-vehicle-detector:
+    build: .
+    container_name: metube-vehicle-detector
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./downloads:/downloads
+    environment:
+      # Basic MeTube settings
+      - UID=1000
+      - GID=1000
+      - DOWNLOAD_DIR=/downloads
+      - STATE_DIR=/downloads/.metube
+      - TEMP_DIR=/downloads
+
+      # Vehicle Detection Settings
+      - ENABLE_VEHICLE_DETECTION=true
+      - SHOTS_DIR=/downloads/shots
+
+      # YOLO Configuration
+      # Model options: yolo11n.pt (fastest), yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt (most accurate)
+      - YOLO_MODEL=yolo11n.pt
+      - YOLO_CONF_THRESHOLD=0.5
+      - YOLO_SIMILARITY_THRESHOLD=0.80
+      - YOLO_MIN_AREA=40000
+      # Strategy options: "complete" (vehicle not touching edges), "largest" (biggest area), "first" (fastest)
+      - YOLO_STRATEGY=complete
+
+      # License Plate Detection Configuration
+      - PLATE_DETECTOR_MODEL=yolo-v9-s-608-license-plate-end2end
+      - PLATE_OCR_MODEL=global-plates-mobile-vit-v2-model
+
+      # Optional: MeTube advanced settings
+      # - MAX_CONCURRENT_DOWNLOADS=3
+      # - OUTPUT_TEMPLATE=%(title)s.%(ext)s
+      # - DEFAULT_THEME=auto
+      # - LOGLEVEL=INFO

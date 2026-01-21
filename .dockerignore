@@ -2,3 +2,12 @@
 .venv
 ui/.angular
 ui/node_modules
+downloads
+shots
+*.pyc
+__pycache__
+.pytest_cache
+.vscode
+.idea
+*.log
+docker-compose.example.yml

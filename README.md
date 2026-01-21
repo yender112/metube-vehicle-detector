@@ -1,9 +1,22 @@
-# MeTube
+# MeTube Vehicle Detector
 
 ![Build Status](https://github.com/alexta69/metube/actions/workflows/main.yml/badge.svg)
 ![Docker Pulls](https://img.shields.io/docker/pulls/alexta69/metube.svg)
 
-Web GUI for youtube-dl (using the [yt-dlp](https://github.com/yt-dlp/yt-dlp) fork) with playlist support. Allows you to download videos from YouTube and [dozens of other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
+Web GUI for youtube-dl (using the [yt-dlp](https://github.com/yt-dlp/yt-dlp) fork) with playlist support **and automatic vehicle & license plate detection**. Allows you to download videos from YouTube and [dozens of other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), and automatically extract vehicles with visible license plates.
+
+## 🚗 Vehicle Detection Features
+
+This fork adds automatic vehicle and license plate detection capabilities:
+
+- **YOLOv8/v11 Vehicle Detection**: Automatically detects cars, motorcycles, buses, and trucks in downloaded videos
+- **Object Tracking**: Tracks vehicles across frames to extract the best shot of each unique vehicle
+- **License Plate OCR**: Filters vehicles by presence of valid, readable license plates
+- **Smart Deduplication**: Removes duplicate vehicles using visual similarity analysis
+- **Configurable Pipeline**: Adjust confidence thresholds, detection strategies, and plate validation rules
+- **Automatic Processing**: Videos are processed automatically after download, no manual intervention needed
+
+Detected vehicles with valid plates are saved to `{DOWNLOAD_DIR}/shots/{video_name}/`
 
 ![screenshot1](https://github.com/alexta69/metube/raw/master/screenshot.gif)
 
@@ -17,15 +30,22 @@ docker run -d -p 8081:8081 -v /path/to/downloads:/downloads ghcr.io/alexta69/met
 
 ```yaml
 services:
-  metube:
-    image: ghcr.io/alexta69/metube
-    container_name: metube
+  metube-vehicle-detector:
+    build: .
+    container_name: metube-vehicle-detector
     restart: unless-stopped
     ports:
       - "8081:8081"
     volumes:
-      - /path/to/downloads:/downloads
+      - ./downloads:/downloads
+    environment:
+      - ENABLE_VEHICLE_DETECTION=true
+      - YOLO_MODEL=yolo11n.pt
+      - YOLO_CONF_THRESHOLD=0.5
+      - SHOTS_DIR=/downloads/shots
 ```
+
+See [docker-compose.example.yml](docker-compose.example.yml) for complete configuration options.
 
 ## ⚙️ Configuration via environment variables
 
@@ -76,8 +96,33 @@ Certain values can be set via environment variables, using the `-e` parameter on
 * __GID__: Group under which MeTube will run. Defaults to `1000`.
 * __UMASK__: Umask value used by MeTube. Defaults to `022`.
 * __DEFAULT_THEME__: Default theme to use for the UI, can be set to `light`, `dark`, or `auto`. Defaults to `auto`.
-* __LOGLEVEL__: Log level, can be set to `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`, or `NONE`. Defaults to `INFO`. 
+* __LOGLEVEL__: Log level, can be set to `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`, or `NONE`. Defaults to `INFO`.
 * __ENABLE_ACCESSLOG__: Whether to enable access log. Defaults to `false`.
+
+### 🚗 Vehicle Detection Settings
+
+* __ENABLE_VEHICLE_DETECTION__: Enable/disable automatic vehicle detection. Defaults to `true`.
+* __SHOTS_DIR__: Directory where detected vehicle images will be saved. Defaults to `./shots`.
+
+#### YOLO Vehicle Detection
+
+* __YOLO_MODEL__: YOLO model to use. Options: `yolo11n.pt` (fastest), `yolo11s.pt`, `yolo11m.pt`, `yolo11l.pt`, `yolo11x.pt` (most accurate). Defaults to `yolo11n.pt`.
+* __YOLO_CONF_THRESHOLD__: Minimum confidence threshold for vehicle detection (0.0-1.0). Defaults to `0.5`.
+* __YOLO_SIMILARITY_THRESHOLD__: Threshold for visual similarity deduplication (0.0-1.0, higher = more strict). Defaults to `0.80`.
+* __YOLO_MIN_AREA__: Minimum bounding box area in pixels to consider a vehicle. Defaults to `40000` (roughly 200x200 pixels).
+* __YOLO_STRATEGY__: Best frame selection strategy. Options:
+  * `complete` (default): Prioritizes vehicles not touching frame edges
+  * `largest`: Selects frame with largest vehicle area
+  * `first`: Takes first valid detection (fastest)
+
+#### License Plate Detection & OCR
+
+* __PLATE_DETECTOR_MODEL__: Model for license plate detection. Defaults to `yolo-v9-s-608-license-plate-end2end`.
+* __PLATE_OCR_MODEL__: Model for OCR text extraction. Defaults to `global-plates-mobile-vit-v2-model`.
+
+**Note**: Only vehicles with valid, readable license plates are saved. Plate format validation:
+- Motorcycles: `ABC12D` (3 letters, 2 numbers, 1 letter)
+- Cars/Buses/Trucks: `ABC123` (3 letters, 3 numbers)
 
 The project's Wiki contains examples of useful configurations contributed by users of MeTube:
 * [YTDL_OPTIONS Cookbook](https://github.com/alexta69/metube/wiki/YTDL_OPTIONS-Cookbook)
