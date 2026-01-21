@@ -1,4 +1,4 @@
-# Vehicle Detection Technical Documentation RUN
+# Vehicle Detection Technical Documentation
 
 ## Overview
 

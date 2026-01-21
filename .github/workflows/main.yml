@@ -8,6 +8,7 @@ on:
 jobs:
   dockerhub-build-push:
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       -
         name: Get current date
@@ -53,6 +54,7 @@ jobs:
   dockerhub-sync-readme:
     needs: dockerhub-build-push
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - name: Sync README
         uses: docker://lsiodev/readme-sync:latest
@@ -69,6 +71,7 @@ jobs:
   create-release:
     needs: dockerhub-build-push
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - name: Get current date
         id: date
