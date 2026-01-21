@@ -69,7 +69,7 @@ class FileMover:
         cmd = [
             'smbclient',
             share_path,
-            '-U', self._get_auth_string(),
+            self._get_auth_args(),
             '-c', cmd_string
         ]
 
