@@ -43,6 +43,7 @@ RUN sed -i 's/\r$//g' docker-entrypoint.sh && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
     # Add uv to PATH and install Python packages
     export PATH="/root/.local/bin:$PATH" && \
+    uv lock --upgrade && \
     UV_PROJECT_ENVIRONMENT=/usr/local uv sync --no-dev --compile-bytecode && \
     # Clean up
     apt-get clean && \
